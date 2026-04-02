@@ -7,15 +7,13 @@ const Layout = () => {
   return (
     <div className="min-h-screen flex flex-col bg-[#EBEDE8]">
 
-    
-      <Navbar />
 
-      
+      <Navbar />
       <main className="grow p-4">
         <Outlet />
       </main>
 
-   
+
       <Footer />
 
     </div>
