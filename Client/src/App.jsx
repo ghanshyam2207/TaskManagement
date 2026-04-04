@@ -6,47 +6,43 @@ import AdminDashboard from "./admin/AdminDashboard";
 import CreateUser from "./admin/CreateUser";
 import MainPart from "./admin/MainPart";
 import AssignTask from "./admin/AssignTask";
-import UserDashboard from "./users/userdashboard";
+import DisplayUsers from "./admin/DisplayUsers";
+import UserDashboard from "./users/UserDashboard";
 import UserTask from "./users/UserTask";
 import UserHome from "./users/Userhome";
+import UserProfile from "./users/UserProfile";
 
 
 const App = ()=>{
   return(
     <>
         <BrowserRouter>
-         <Routes>
-            <Route path="/" element={<Layout/>}>
-              <Route index element={<Home />} />
-              <Route path="/home" element={<Home/>}/>
-              </Route>
-         </Routes>
-         
-         <Routes>
-
-          <Route path="/admindashboard" element = {<AdminDashboard/>}>
-          <Route index element={<MainPart/>}/>
-          <Route path="mainpart" element={<MainPart/>}/>
-          <Route path="createuser" element={<CreateUser/>}/>
-          <Route path="assigntask" element={<AssignTask/>}/>
-          </Route>
-           </Routes>
-
-
-           
           <Routes>
-            <Route path="/userdashboard" element={<UserDashboard/>}>
+            {/* User Facing Routes */}
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Home />} />
+              <Route path="home" element={<Home />} />
+            </Route>
+
+            {/* Admin Dashboard Routes */}
+            <Route path="/admindashboard" element={<AdminDashboard />}>
+              <Route index element={<MainPart />} />
+              <Route path="mainpart" element={<MainPart />} />
+              <Route path="createuser" element={<CreateUser />} />
+              <Route path="assigntask" element={<AssignTask />} />
+              <Route path="displayusers" element={<DisplayUsers />} />
+            </Route>
+
+            {/* User Dashboard Routes */}
+            <Route path="/userdashboard" element={<UserDashboard />}>
               <Route index element={<UserHome />} />
-                <Route path="usertask" element={<UserTask/>}/>
+              <Route path="usertask" element={<UserTask />} />
+              <Route path="profile" element={<UserProfile />} />
             </Route>
           </Routes>
-      
-        
-        
         </BrowserRouter>
     </>
   )
 }
-// new code
 
 export default App;

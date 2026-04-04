@@ -19,7 +19,7 @@ const Login = async (req,res)=>{
     
    }
 
-   res.send({admin, msg: "Amin succefully Login"});
+   res.send({admin, msg: "Admin succefully Login"});
 }
 
 
@@ -76,18 +76,24 @@ const CreateUSer = async (req, res) => {
       `,
     };
 
-    // Send Mail
-    await mailTransporter.sendMail(mailDetails);
-    
-    console.log("Email sent successfully to:", email);
-
-    res.status(200).send({
-      msg: "User created & email sent successfully ✅",
-    });
+    // Send Mail (Separate try-catch to avoid breaking user creation on email failure)
+    try {
+      await mailTransporter.sendMail(mailDetails);
+      console.log("Email sent successfully to:", email);
+      res.status(200).send({
+        msg: "User created & email sent successfully ✅",
+      });
+    } catch (mailError) {
+      console.error("User created but email failed:", mailError.message);
+      res.status(201).send({
+        msg: "User created successfully, but email notification failed ⚠️",
+        error: mailError.message
+      });
+    }
   } catch (error) {
     console.error("Error in CreateUSer:", error);
     res.status(500).send({
-      msg: "Failed to create user or send email",
+      msg: "Failed to create user",
       error: error.message
     });
   }
@@ -112,9 +118,43 @@ let adimtask  = await taskModel.create({
 res.send("Assign task succefully");
 }
 
+const getDashboardStats = async (req, res) => {
+  try {
+    const totalTasks = await taskModel.countDocuments();
+    const completedTasks = await taskModel.countDocuments({ status: "Completed" });
+    const pendingTasks = await taskModel.countDocuments({ status: "Pending" });
+    const inProgressTasks = await taskModel.countDocuments({ status: "In Progress" });
+    const totalUsers = await userModel.countDocuments();
+
+    // Logic for overdue: (status != Completed AND current date > createdAt + days)
+    // For simplicity, let's just count manually or use a more complex aggregation
+    // For now, I'll count tasks that are not completed and have been created too long ago.
+    
+    const tasks = await taskModel.find({ status: { $ne: "Completed" } });
+    const now = new Date();
+    const overdueTasks = tasks.filter(task => {
+      const createdDate = new Date(task.createdAt);
+      const dueDate = new Date(createdDate.getTime() + task.days * 24 * 60 * 60 * 1000);
+      return now > dueDate;
+    }).length;
+
+    res.status(200).send({
+      totalTasks,
+      completedTasks,
+      pendingTasks,
+      inProgressTasks,
+      totalUsers,
+      overdueTasks
+    });
+  } catch (error) {
+    res.status(500).send({ msg: "Error fetching stats", error: error.message });
+  }
+}
+
 module.exports = {
     Login,
     CreateUSer,
     admindispaly,
-    assigntask
+    assigntask,
+    getDashboardStats
 }

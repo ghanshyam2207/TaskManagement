@@ -3,6 +3,8 @@ import axios from "axios";
 import Navbar from "../Components/Navbar";
 import Footer from "../Components/Footer";
 import { useNavigate } from "react-router-dom";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Home = () => {
 
@@ -32,26 +34,28 @@ const Home = () => {
       // 🔥 admin login
       if (userType === "admin") {
         localStorage.setItem("admin", response.data.admin?.email);
+        toast.success("Admin Login Successful! 🔓");
         navigate("/admindashboard");
       } 
       
-      // 🔥 user login
       else {
-        localStorage.setItem("user", response.data.user?.email);
+        const userData = response.data.user;
+        localStorage.setItem("user", userData?.email);
+        localStorage.setItem("userid", userData?.id || userData?._id); 
+        localStorage.setItem("userData", JSON.stringify(userData));
+        toast.success("User Login Successful! 👋");
         navigate("/userdashboard");
       }
 
     } catch (error) {
       console.log("ERROR:", error.response?.data);
-      alert(error.response?.data?.msg || "Login Failed ❌");
+      toast.error(error.response?.data?.msg || "Login Failed ❌");
     }
   };
 
   return (
     <div className="min-h-screen bg-[#EBEDE8] flex flex-col justify-between">
-
-      {/* Navbar */}
-      {/* <Navbar /> */}
+      <ToastContainer position="top-right" autoClose={2000} />
 
       {/* Login Section */}
       <div className="flex justify-center items-center grow px-4">
@@ -103,7 +107,7 @@ const Home = () => {
               className="bg-gradient-to-r from-[#E2FB6C] to-[#A8FF78] 
               text-[#004838] py-3 rounded-lg font-semibold 
               hover:from-[#004838] hover:to-[#073127] hover:text-white 
-              transition duration-300"
+              transition duration-300 transform hover:scale-105"
             >
               Login
             </button>
@@ -117,9 +121,6 @@ const Home = () => {
 
         </div>
       </div>
-
-      {/* Footer */}
-      {/* <Footer /> */}
     </div>
   );
 };
