@@ -6,16 +6,34 @@ const AssignTask = () => {
   const [mydata, setMyData] = useState([]);
   const [userId, setUserId] = useState(null);
   const [userName, setUserName] = useState("");
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isUserEditOpen, setIsUserEditOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  let [input, setInput] = useState({
+  let [taskInput, setTaskInput] = useState({
     task: "",
     days: "",
+    priority: "Medium",
+    dueDate: ""
   });
 
-  let handleInput = (e) => {
+  let [userInput, setUserInput] = useState({
+    name: "",
+    email: "",
+    post: ""
+  });
+
+  let handleTaskInput = (e) => {
     let { name, value } = e.target;
-    setInput((prev) => ({
+    setTaskInput((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  let handleUserInput = (e) => {
+    let { name, value } = e.target;
+    setUserInput((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -36,23 +54,59 @@ const AssignTask = () => {
   }, []);
 
   let openAssignModal = (id, name) => {
-    setIsEditOpen(true);
+    setIsTaskModalOpen(true);
     setUserId(id);
     setUserName(name);
-    setInput({ task: "", days: "" });
+    setTaskInput({ task: "", days: "", priority: "Medium", dueDate: "" });
+  };
+
+  let openEditUserModal = (user) => {
+    setIsUserEditOpen(true);
+    setUserId(user._id);
+    setUserInput({
+      name: user.name,
+      email: user.email,
+      post: user.post
+    });
+  };
+
+  let handleDeleteUser = async (id) => {
+    if (window.confirm("Are you sure you want to delete this user and all their tasks? This action cannot be undone! ⚠️")) {
+        try {
+            let api = `${import.meta.env.VITE_API_URL}/admin/deleteuser/${id}`;
+            await axios.delete(api);
+            toast.success("User deleted successfully! 🗑️");
+            loadData();
+        } catch (error) {
+            toast.error("Failed to delete user ❌");
+        }
+    }
+  };
+
+  let handleUpdateUser = async (e) => {
+    e.preventDefault();
+    try {
+        let api = `${import.meta.env.VITE_API_URL}/admin/updateuser/${userId}`;
+        await axios.put(api, userInput);
+        toast.success("User updated successfully! ✅");
+        setIsUserEditOpen(false);
+        loadData();
+    } catch (error) {
+        toast.error("Failed to update user ❌");
+    }
   };
 
   let handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.task || !input.days) {
+    if (!taskInput.task || !taskInput.days) {
         return toast.warn("Please fill all task details! ⚠️");
     }
 
     try {
       let api = `${import.meta.env.VITE_API_URL}/admin/assigntask`;
-      let res = await axios.post(api, { ...input, userId: userId });
+      let res = await axios.post(api, { ...taskInput, userId: userId });
       toast.success("Task Assigned Successfully! ✅");
-      setIsEditOpen(false);
+      setIsTaskModalOpen(false);
       loadData();
     } catch (error) {
       toast.error(error.response?.data?.msg || "Failed to assign task ❌");
@@ -83,7 +137,19 @@ const AssignTask = () => {
       </div>
 
       {/* 📋 User List Table Section */}
-      <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] border border-gray-50 overflow-hidden relative">
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 bg-white p-2 px-6 rounded-2xl border border-gray-100 shadow-sm max-w-md">
+           <span className="text-gray-400">🔍</span>
+           <input 
+             type="text" 
+             placeholder="Search by name or email..." 
+             className="flex-1 bg-transparent border-none outline-none font-bold text-sm text-gray-700 py-2"
+             value={searchTerm}
+             onChange={(e) => setSearchTerm(e.target.value)}
+           />
+        </div>
+
+        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] border border-gray-50 overflow-hidden relative">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full border-collapse">
             <thead>
@@ -97,7 +163,12 @@ const AssignTask = () => {
             </thead>
 
             <tbody className="divide-y divide-gray-50">
-              {mydata.map((item, index) => (
+              {mydata
+                .filter(user => 
+                  user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                  user.email.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map((item, index) => (
                 <tr
                   key={index}
                   className="group hover:bg-[#E2FB6C]/10 transition-all duration-300 transform"
@@ -121,12 +192,28 @@ const AssignTask = () => {
                   </td>
 
                   <td className="px-8 py-6 text-center">
-                    <button
-                      onClick={() => openAssignModal(item._id, item.name)}
-                      className="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-[#004838] to-[#073127] text-white rounded-xl shadow-lg shadow-[#004838]/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                    >
-                      Assign Task
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => openAssignModal(item._id, item.name)}
+                          className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-[#004838] to-[#073127] text-white rounded-xl shadow-lg shadow-[#004838]/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                        >
+                          Assign Task
+                        </button>
+                        <button
+                          onClick={() => openEditUserModal(item)}
+                          className="p-2.5 text-blue-600 hover:bg-blue-50 bg-white rounded-xl border border-blue-100 transition-all hover:scale-110 active:scale-95"
+                          title="Edit User"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(item._id)}
+                          className="p-2.5 text-red-600 hover:bg-red-50 bg-white rounded-xl border border-red-100 transition-all hover:scale-110 active:scale-95"
+                          title="Delete User"
+                        >
+                          🗑️
+                        </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -141,11 +228,12 @@ const AssignTask = () => {
           </div>
         )}
       </div>
+    </div>
 
       {/* 📦 Assign Task Modal */}
-      {isEditOpen && (
+      {isTaskModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-50 px-4">
-          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm animate-in fade-in" onClick={() => setIsEditOpen(false)}></div>
+          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm animate-in fade-in" onClick={() => setIsTaskModalOpen(false)}></div>
           
           <div className="w-full max-w-lg bg-white rounded-[3rem] shadow-2xl p-6 md:p-12 relative z-10 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 overflow-hidden">
             
@@ -154,7 +242,7 @@ const AssignTask = () => {
             
             {/* Close Button */}
             <button
-              onClick={() => setIsEditOpen(false)}
+              onClick={() => setIsTaskModalOpen(false)}
               className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all z-20"
             >
               ✖
@@ -178,8 +266,8 @@ const AssignTask = () => {
                         type="text"
                         name="task"
                         autoComplete="off"
-                        value={input.task}
-                        onChange={handleInput}
+                        value={taskInput.task}
+                        onChange={handleTaskInput}
                         className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-[#004838] focus:ring-0 outline-none transition-all font-bold text-gray-700"
                         placeholder="Define the scope..."
                     />
@@ -194,10 +282,36 @@ const AssignTask = () => {
                     type="number"
                     name="days"
                     autoComplete="off"
-                    value={input.days}
-                    onChange={handleInput}
+                    value={taskInput.days}
+                    onChange={handleTaskInput}
                     className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-[#004838] focus:ring-0 outline-none transition-all font-bold text-gray-700"
                     placeholder="Duration"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Priority</label>
+                  <select
+                    name="priority"
+                    value={taskInput.priority}
+                    onChange={handleTaskInput}
+                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-[#004838] focus:ring-0 outline-none transition-all font-bold text-gray-700"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Specific Due Date</label>
+                  <input
+                    type="date"
+                    name="dueDate"
+                    value={taskInput.dueDate}
+                    onChange={handleTaskInput}
+                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-[#004838] focus:ring-0 outline-none transition-all font-bold text-gray-700"
                   />
                 </div>
               </div>
@@ -208,6 +322,93 @@ const AssignTask = () => {
                   className="flex-1 bg-gradient-to-r from-[#004838] to-[#073127] text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[.2em] shadow-xl shadow-[#004838]/20 hover:scale-[1.03] active:scale-[0.97] transition-all"
                 >
                   Deploy Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 👤 Edit User Modal */}
+      {isUserEditOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 px-4">
+          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm animate-in fade-in" onClick={() => setIsUserEditOpen(false)}></div>
+          
+          <div className="w-full max-w-lg bg-white rounded-[3rem] shadow-2xl p-6 md:p-12 relative z-10 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 overflow-hidden">
+            
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#E2FB6C]/20 rounded-bl-full -z-0"></div>
+            
+            <button
+              onClick={() => setIsUserEditOpen(false)}
+              className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all z-20"
+            >
+              ✖
+            </button>
+
+            <div className="text-center mb-10 relative z-10">
+                <span className="px-4 py-1.5 bg-gray-100 text-[#004838] rounded-full text-[10px] font-black tracking-widest uppercase mb-4 inline-block">Staff update</span>
+                <h1 className="text-3xl font-black text-gray-900 leading-tight">
+                    Refactoring User <br />
+                    <span className="bg-gradient-to-r from-[#004838] to-[#073127] bg-clip-text text-transparent">{userInput.name}</span>
+                </h1>
+            </div>
+
+            <form onSubmit={handleUpdateUser} className="flex flex-col gap-6 relative z-10">
+              
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                <div className="relative group">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg grayscale opacity-50 group-focus-within:grayscale-0 group-focus-within:opacity-100 transition-all">👤</span>
+                    <input
+                        type="text"
+                        name="name"
+                        autoComplete="off"
+                        value={userInput.name}
+                        onChange={handleUserInput}
+                        className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-[#004838] focus:ring-0 outline-none transition-all font-bold text-gray-700"
+                        placeholder="Staff member name"
+                    />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Endpoint</label>
+                <div className="relative group">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg grayscale opacity-50 group-focus-within:grayscale-0 group-focus-within:opacity-100 transition-all">📧</span>
+                    <input
+                        type="email"
+                        name="email"
+                        autoComplete="off"
+                        value={userInput.email}
+                        onChange={handleUserInput}
+                        className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-[#004838] focus:ring-0 outline-none transition-all font-bold text-gray-700"
+                        placeholder="Email address"
+                    />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Designation</label>
+                <div className="relative group">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-lg grayscale opacity-50 group-focus-within:grayscale-0 group-focus-within:opacity-100 transition-all">🏢</span>
+                    <input
+                        type="text"
+                        name="post"
+                        autoComplete="off"
+                        value={userInput.post}
+                        onChange={handleUserInput}
+                        className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-[1.5rem] focus:bg-white focus:border-[#004838] focus:ring-0 outline-none transition-all font-bold text-gray-700"
+                        placeholder="Staff post"
+                    />
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-[#004838] to-[#073127] text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[.2em] shadow-xl shadow-[#004838]/20 hover:scale-[1.03] active:scale-[0.97] transition-all"
+                >
+                  Commit Changes
                 </button>
               </div>
             </form>

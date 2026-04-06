@@ -18,7 +18,7 @@ const UserDashboard = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-[#EBEDE8] overflow-hidden">
+<div className="flex flex-col md:flex-row h-screen bg-[#EBEDE8] dark:bg-gray-900 overflow-hidden">
       <ToastContainer position="top-right" autoClose={2000} />
 
       {/* 🔥 Mobile Top Bar */}

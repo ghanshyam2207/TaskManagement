@@ -1,5 +1,6 @@
 const userModel = require("../models/userModel");
 const TaskModel = require("../models/taskModel");
+const notificationModel = require("../models/notificationModel");
 
 const Login = async (req,res)=>{
    console.log(req.body);
@@ -67,9 +68,44 @@ const getUserStats = async (req, res) => {
     }
 }
 
+const getNotifications = async (req, res) => {
+    let { userId } = req.query;
+    try {
+        // If it's an admin request, find notifications for admin (userId: null)
+        const filter = (userId === "admin") ? { userId: null } : { userId };
+        const notifications = await notificationModel.find(filter).sort({ createdAt: -1 }).limit(10);
+        res.status(200).send(notifications);
+    } catch (error) {
+        res.status(500).send({ msg: "Error fetching notifications", error: error.message });
+    }
+};
+
+const markNotificationsAsRead = async (req, res) => {
+    const { userId } = req.body;
+    try {
+        await notificationModel.updateMany({ userId, isRead: false }, { isRead: true });
+        res.status(200).send("Notifications marked as read");
+    } catch (error) {
+        res.status(500).send({ msg: "Error updating notifications", error: error.message });
+    }
+};
+
+const updateUserProfile = async (req, res) => {
+    const { id, name, email, password } = req.body;
+    try {
+        await userModel.findByIdAndUpdate(id, { name, email, password });
+        res.status(200).send("Profile updated successfully");
+    } catch (error) {
+        res.status(500).send({ msg: "Error updating profile", error: error.message });
+    }
+};
+
 module.exports = {
     Login,
     getuserTask,
     setTaskStatus,
-    getUserStats
+    getUserStats,
+    getNotifications,
+    markNotificationsAsRead,
+    updateUserProfile
 }

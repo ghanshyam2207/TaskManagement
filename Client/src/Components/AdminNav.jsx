@@ -1,11 +1,55 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
+import axios from "axios";
+import { Moon, Sun, Bell } from "lucide-react";
 
 const AdminNav = () => {
   const [open, setOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem("theme") === "dark");
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/user/getnotifications?userId=admin`);
+      setNotifications(res.data);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const markRead = async () => {
+    setShowNotifications(!showNotifications);
+    if (!showNotifications) {
+        try {
+            await axios.post(`${import.meta.env.VITE_API_URL}/user/mark-read-notifications`, { userId: "admin" });
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        } catch (error) {
+            console.error("Error marking read:", error);
+        }
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDarkMode]);
   const adminEmail = localStorage.getItem("admin") || "Admin";
 
   const logout = () => {
@@ -21,6 +65,7 @@ const AdminNav = () => {
     { name: "Assign Tasks", path: "/admindashboard/assigntask", icon: "📝" },
     { name: "Create User", path: "/admindashboard/createuser", icon: "➕" },
     { name: "Staff Profiles", path: "/admindashboard/displayusers", icon: "👥" },
+    { name: "Ops Overview", path: "/admindashboard/managetasks", icon: "🌐" },
   ];
 
   return (
@@ -62,9 +107,53 @@ const AdminNav = () => {
                     </h2>
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-[.4em] ml-1">Control Console</span>
                 </div>
-                <button onClick={() => setOpen(false)} className="md:hidden w-8 h-8 flex items-center justify-center bg-white/5 rounded-lg text-xs">
-                    ✖
-                </button>
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <button 
+                            onClick={markRead}
+                            className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-lg text-xs hover:bg-[#E2FB6C]/20 transition-all border border-white/5 relative group"
+                        >
+                            <Bell size={14} className={unreadCount > 0 ? "animate-swing" : ""} />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#004838]"></span>
+                            )}
+                        </button>
+                        
+                        {showNotifications && (
+                            <div className="absolute left-0 mt-4 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-[110] animate-in slide-in-from-top-2 duration-300">
+                                <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                                    <span className="text-[9px] font-black uppercase text-[#004838]">Operational Alerts</span>
+                                    <span className="text-[8px] font-bold text-gray-400">{notifications.length} Total</span>
+                                </div>
+                                <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                    {notifications.length > 0 ? (
+                                        notifications.map((n, i) => (
+                                            <div key={i} className={`p-4 border-b border-gray-50 last:border-none hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-[#E2FB6C]/5' : ''}`}>
+                                                <p className="text-[10px] font-bold text-gray-700 leading-tight mb-1">{n.message}</p>
+                                                <p className="text-[8px] font-black text-gray-400 uppercase">{new Date(n.createdAt).toLocaleTimeString()}</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-8 text-center opacity-30">
+                                            <Bell size={20} className="mx-auto mb-2" />
+                                            <p className="text-[8px] font-black uppercase">No New Signals</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <button 
+                        onClick={() => setIsDarkMode(!isDarkMode)}
+                        className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-lg text-xs hover:bg-white/10 transition-all border border-white/5"
+                    >
+                        {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+                    </button>
+                    <button onClick={() => setOpen(false)} className="md:hidden w-8 h-8 flex items-center justify-center bg-white/5 rounded-lg text-xs">
+                        ✖
+                    </button>
+                </div>
             </div>
 
             {/* Admin Profile Preview */}

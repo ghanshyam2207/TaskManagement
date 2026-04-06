@@ -11,6 +11,7 @@ import UserDashboard from "./users/UserDashboard";
 import UserTask from "./users/UserTask";
 import UserHome from "./users/Userhome";
 import UserProfile from "./users/UserProfile";
+import ManageTasks from "./admin/ManageTasks";
 
 
 const App = ()=>{
@@ -31,6 +32,7 @@ const App = ()=>{
               <Route path="createuser" element={<CreateUser />} />
               <Route path="assigntask" element={<AssignTask />} />
               <Route path="displayusers" element={<DisplayUsers />} />
+              <Route path="managetasks" element={<ManageTasks />} />
             </Route>
 
             {/* User Dashboard Routes */}

@@ -6,8 +6,10 @@ const UserHome = () => {
   const [stats, setStats] = useState({ total: 0, completed: 0, inProgress: 0, pending: 0 });
   const [recentTasks, setRecentTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editInput, setEditInput] = useState({ name: "", email: "", password: "" });
   
-  const user = JSON.parse(localStorage.getItem("userData")) || { name: localStorage.getItem("user") || "User" };
+  const user = JSON.parse(localStorage.getItem("userData")) || { name: localStorage.getItem("user") || "User", email: "", id: localStorage.getItem("userid") };
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -27,6 +29,30 @@ const UserHome = () => {
       console.error("Error fetching stats:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditProfile = () => {
+    setEditInput({ name: user.name, email: user.email, password: user.password || "" });
+    setIsEditProfileOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+        const userid = localStorage.getItem("userid");
+        await axios.post(`${import.meta.env.VITE_API_URL}/user/update-profile`, {
+            id: userid,
+            ...editInput
+        });
+        localStorage.setItem("userData", JSON.stringify({ ...user, ...editInput }));
+        localStorage.setItem("user", editInput.name);
+        setIsEditProfileOpen(false);
+        // Toast notification would be nice, but I don't have it imported here.
+        // Assuming user will see changes on next reload or state update.
+        window.location.reload(); 
+    } catch (error) {
+        console.error("Error updating profile:", error);
     }
   };
 
@@ -61,7 +87,13 @@ const UserHome = () => {
             Welcome back to your workspace. You have <span className="text-[#E2FB6C] font-black">{stats.pending + stats.inProgress} tasks</span> waiting for your attention today.
           </p>
           
-          <div className="mt-8 flex flex-wrap gap-4">
+          <div className="mt-8 flex flex-wrap gap-4 items-center">
+            <button 
+                onClick={handleEditProfile}
+                className="bg-[#E2FB6C] text-[#004838] px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:shadow-xl hover:shadow-[#E2FB6C]/20 transition-all active:scale-95"
+            >
+                Edit Profile ⚙️
+            </button>
             <div className="flex items-center gap-3 bg-black/20 backdrop-blur-xl px-5 py-3 rounded-2xl border border-white/5">
               <span className="text-2xl">🕒</span>
               <div>
@@ -145,12 +177,22 @@ const UserHome = () => {
                       {task.status === 'Completed' ? '✅' : task.status === 'In Progress' ? '⏳' : '📋'}
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-gray-800 text-sm line-clamp-1">{task.task}</p>
-                      <p className="text-[10px] text-gray-500 font-medium">Status: {task.status}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-gray-800 text-sm line-clamp-1">{task.task}</p>
+                        <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter ${
+                          task.priority === 'High' ? 'bg-red-100 text-red-600' : 
+                          task.priority === 'Medium' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                        }`}>
+                          {task.priority || 'Medium'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 font-medium">
+                        Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Updated</p>
-                      <p className="text-[10px] font-black text-gray-600">{new Date(task.updatedAt).toLocaleDateString()}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Status</p>
+                      <p className="text-[10px] font-black text-gray-600">{task.status}</p>
                     </div>
                   </div>
                 ))
@@ -183,6 +225,52 @@ const UserHome = () => {
 
       </div>
 
+      {/* Edit Profile Modal */}
+      {isEditProfileOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-[110] px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsEditProfileOpen(false)}></div>
+          <div className="bg-white rounded-[3rem] w-full max-w-md p-10 shadow-2xl relative z-[120] animate-in zoom-in-95 duration-300">
+             <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-black text-[#004838]">Update Profile</h2>
+                <button onClick={() => setIsEditProfileOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">✕</button>
+             </div>
+             
+             <form onSubmit={handleEditSubmit} className="space-y-6">
+                <div>
+                   <label className="block ml-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Display Name</label>
+                   <input
+                     type="text"
+                     value={editInput.name}
+                     onChange={(e) => setEditInput({ ...editInput, name: e.target.value })}
+                     className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-[#E2FB6C] outline-none transition-all font-bold text-gray-700"
+                   />
+                </div>
+                <div>
+                   <label className="block ml-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Email Address</label>
+                   <input
+                     type="email"
+                     value={editInput.email}
+                     onChange={(e) => setEditInput({ ...editInput, email: e.target.value })}
+                     className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-[#E2FB6C] outline-none transition-all font-bold text-gray-700"
+                   />
+                </div>
+                <div>
+                   <label className="block ml-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Change Password</label>
+                   <input
+                     type="password"
+                     placeholder="New password..."
+                     value={editInput.password}
+                     onChange={(e) => setEditInput({ ...editInput, password: e.target.value })}
+                     className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-[#E2FB6C] outline-none transition-all font-bold text-gray-700"
+                   />
+                </div>
+                <button type="submit" className="w-full py-5 bg-[#004838] text-[#E2FB6C] font-black rounded-2xl hover:shadow-xl transition-all uppercase tracking-widest text-xs mt-4">
+                   Save Changes
+                </button>
+             </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

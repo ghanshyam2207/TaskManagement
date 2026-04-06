@@ -6,7 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
   return (
-    <div className="h-screen flex flex-col md:flex-row bg-[#EBEDE8] overflow-hidden">
+<div className="h-screen flex flex-col md:flex-row bg-[#EBEDE8] dark:bg-gray-900 overflow-hidden">
       <ToastContainer position="top-right" autoClose={3000} />
 
       {/* Sidebar (20%) */}

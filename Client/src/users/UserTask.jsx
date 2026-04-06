@@ -8,13 +8,19 @@ const UserTask = () => {
   const [showModal, setShowModal] = useState(false);
   const [taskStatus, setTaskStatus] = useState("");
   const [compDay, setCompDay] = useState("");
-  const [selectedTaskID, setSelectedTaskID] = useState("");
   const [loading, setLoading] = useState(true);
-
-  const handleClose = () => setShowModal(false);
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [taskId, setTaskId] = useState("");
+  const [comments, setComments] = useState([]);
+  const [commentInput, setCommentInput] = useState("");
+  const user = JSON.parse(localStorage.getItem("userData")) || { name: localStorage.getItem("user") || "User" };
   const handleShow = (id) => {
-    setSelectedTaskID(id);
+    setTaskId(id);
     setShowModal(true);
+  };
+
+  const handleClose = () => {
+    setShowModal(false);
   };
 
   const loadData = async () => {
@@ -40,6 +46,37 @@ const UserTask = () => {
     loadData();
   }, []);
 
+  const openCommentModal = async (tid) => {
+    setTaskId(tid);
+    setIsCommentModalOpen(true);
+    fetchComments(tid);
+  };
+
+  const fetchComments = async (tid) => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/getcomments?taskId=${tid}`);
+      setComments(res.data);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+    }
+  };
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!commentInput) return;
+    try {
+        await axios.post(`${import.meta.env.VITE_API_URL}/admin/addcomment`, {
+            taskId,
+            senderName: user.name,
+            message: commentInput
+        });
+        setCommentInput("");
+        fetchComments(taskId);
+    } catch (error) {
+        toast.error("Failed to post comment");
+    }
+  };
+
   const handleSubmitTask = async (e) => {
     e.preventDefault();
     if (!taskStatus || !compDay) {
@@ -50,7 +87,7 @@ const UserTask = () => {
     try {
       let api = `${import.meta.env.VITE_API_URL}/user/settaskstatus`;
       await axios.post(api, { 
-        taskID: selectedTaskID, 
+        taskID: taskId, 
         taskStatus, 
         compDay 
       });
@@ -100,7 +137,8 @@ const UserTask = () => {
                 <tr className="bg-[#004838] text-white">
                   <th className="px-6 py-5 font-semibold text-sm uppercase tracking-wider">#</th>
                   <th className="px-6 py-5 font-semibold text-sm uppercase tracking-wider">Task Description</th>
-                  <th className="px-6 py-5 font-semibold text-sm uppercase tracking-wider">Target Days</th>
+                  <th className="px-6 py-5 font-semibold text-sm uppercase tracking-wider">Priority</th>
+                  <th className="px-6 py-5 font-semibold text-sm uppercase tracking-wider">Due Date</th>
                   <th className="px-6 py-5 font-semibold text-sm uppercase tracking-wider">Status</th>
                   <th className="px-6 py-5 font-semibold text-sm uppercase tracking-wider text-center">Action</th>
                 </tr>
@@ -114,8 +152,16 @@ const UserTask = () => {
                     <td className="px-6 py-5 text-gray-600 font-medium">{index + 1}</td>
                     <td className="px-6 py-5 font-medium text-gray-800">{task.task}</td>
                     <td className="px-6 py-5">
-                      <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-bold">
-                        {task.days} Days
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        task.priority === 'High' ? 'bg-red-100 text-red-600' : 
+                        task.priority === 'Medium' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                      }`}>
+                        {task.priority || 'Medium'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className="text-gray-500 font-bold text-sm">
+                        {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A'}
                       </span>
                     </td>
                     <td className="px-6 py-5">
@@ -127,15 +173,22 @@ const UserTask = () => {
                         {task.status || "Pending"}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-center">
-                      <button
-                        onClick={() => handleShow(task._id)}
-                        className="bg-gradient-to-r from-[#004838] to-[#073127] text-white px-5 py-2.5 rounded-xl
-                        hover:shadow-lg hover:shadow-[#004838]/20 transition-all duration-300 transform hover:scale-105 active:scale-95
-                        text-sm font-semibold flex items-center gap-2 mx-auto"
-                      >
-                        🚀 Send Report
-                      </button>
+                    <td className="px-6 py-5 text-center flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleShow(task._id)}
+                          className="bg-gradient-to-r from-[#004838] to-[#073127] text-white px-5 py-2.5 rounded-xl
+                          hover:shadow-lg hover:shadow-[#004838]/20 transition-all duration-300 transform hover:scale-105 active:scale-95
+                          text-sm font-semibold flex items-center gap-2"
+                        >
+                          🚀 Report
+                        </button>
+                        <button
+                          onClick={() => openCommentModal(task._id)}
+                          className="bg-white border border-gray-100 text-gray-400 font-bold p-2.5 rounded-xl hover:bg-[#E2FB6C]/20 hover:text-[#004838] transition-all hover:scale-110 active:scale-95 shadow-sm"
+                          title="Discussion"
+                        >
+                          💬
+                        </button>
                     </td>
                   </tr>
                 ))}
@@ -145,80 +198,95 @@ const UserTask = () => {
         </div>
       )}
 
-      {/* Modern Modal Overlay */}
+      {/* Report Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-[100] px-4">
-          {/* Backdrop Animation */}
-          <div 
-            className="absolute inset-0 bg-[#004838]/40 backdrop-blur-sm transition-opacity"
-            onClick={handleClose}
-          ></div>
-          
-          {/* Modal Container */}
-          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl relative z-10 transform scale-100 transition-transform">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-[#004838]">Task Completion Report</h2>
-              <button 
-                onClick={handleClose} 
-                className="text-gray-400 hover:text-red-500 transition-colors p-2"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitTask} className="space-y-6">
-              <div className="space-y-4">
-                {/* Custom Styled Select */}
+        <div className="fixed inset-0 flex items-center justify-center z-[110] px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose}></div>
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl relative z-[120] animate-in zoom-in-95 duration-300">
+             <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black text-[#004838]">Task Completion</h2>
+                <button onClick={handleClose} className="text-gray-400 hover:text-red-500 transition-colors">✕</button>
+             </div>
+             <form onSubmit={handleSubmitTask} className="space-y-6">
                 <div>
-                  <label className="block ml-2 text-sm font-bold text-gray-700 mb-2">
-                    Current Progress
-                  </label>
-                  <select
-                    value={taskStatus}
-                    onChange={(e) => setTaskStatus(e.target.value)}
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-[#E2FB6C] focus:ring-0 outline-none transition-all appearance-none"
-                  >
-                    <option value="">Choose status...</option>
-                    <option value="Completed">✅ Fully Completed</option>
-                    <option value="In Progress">⏳ Partial Completed</option>
-                    <option value="Pending">❌ Not Started</option>
-                  </select>
+                   <label className="block ml-2 text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Update Status</label>
+                   <select
+                     value={taskStatus}
+                     onChange={(e) => setTaskStatus(e.target.value)}
+                     className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-[#E2FB6C] outline-none transition-all font-bold text-gray-700"
+                   >
+                     <option value="">Status...</option>
+                     <option value="Completed">✅ Completed</option>
+                     <option value="In Progress">⏳ In Progress</option>
+                     <option value="Pending">❌ Pending</option>
+                   </select>
                 </div>
-
-                {/* Styled Input */}
                 <div>
-                  <label className="block ml-2 text-sm font-bold text-gray-700 mb-2">
-                    Total Days Taken
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="e.g. 5"
-                    value={compDay}
-                    onChange={(e) => setCompDay(e.target.value)}
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-[#E2FB6C] focus:ring-0 outline-none transition-all font-medium"
-                  />
+                   <label className="block ml-2 text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Days Taken</label>
+                   <input
+                     type="number"
+                     placeholder="e.g. 3"
+                     value={compDay}
+                     onChange={(e) => setCompDay(e.target.value)}
+                     className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-[#E2FB6C] outline-none transition-all font-bold text-gray-700"
+                   />
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4 pt-2">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="flex-1 px-6 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200 transition-colors"
-                >
-                  Cancel
+                <button type="submit" className="w-full py-4 bg-gradient-to-r from-[#E2FB6C] to-[#A8FF78] text-[#004838] font-black rounded-2xl hover:shadow-xl transition-all uppercase tracking-widest text-xs">
+                   Submit Report
                 </button>
+             </form>
+          </div>
+        </div>
+      )}
 
-                <button
-                  type="submit"
-                  className="flex-2 px-8 py-4 bg-gradient-to-r from-[#E2FB6C] to-[#A8FF78] text-[#004838] font-black rounded-2xl hover:shadow-xl hover:shadow-[#A8FF78]/40 transition-all transform hover:-translate-y-1 active:translate-y-0"
-                >
-                  SUBMIT REPORT
+      {/* Discussion Modal */}
+      {isCommentModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-[110] px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsCommentModalOpen(false)}></div>
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg h-[600px] flex flex-col shadow-2xl relative z-[120] animate-in slide-in-from-bottom-10 duration-500 overflow-hidden">
+             <div className="p-6 bg-[#004838] text-white flex justify-between items-center">
+                <div>
+                    <h2 className="text-xl font-black">Task Discussion</h2>
+                    <p className="text-[10px] uppercase font-bold text-[#E2FB6C]">Collaboration Node</p>
+                </div>
+                <button onClick={() => setIsCommentModalOpen(false)} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-red-500 transition-colors">✕</button>
+             </div>
+
+             <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-gray-50/50">
+                {comments.length > 0 ? (
+                    comments.map((c, i) => (
+                        <div key={i} className={`flex flex-col ${c.senderName === user.name ? 'items-end' : 'items-start'}`}>
+                            <div className={`max-w-[80%] p-4 rounded-3xl shadow-sm ${
+                                c.senderName === user.name 
+                                    ? 'bg-[#004838] text-white rounded-tr-none' 
+                                    : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
+                            }`}>
+                                <p className="text-[9px] font-black uppercase tracking-widest mb-1 opacity-60">{c.senderName}</p>
+                                <p className="text-sm font-medium leading-relaxed">{c.message}</p>
+                            </div>
+                            <span className="text-[8px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{new Date(c.createdAt).toLocaleTimeString()}</span>
+                        </div>
+                    ))
+                ) : (
+                    <div className="h-full flex items-center justify-center flex-col opacity-20">
+                        <span className="text-6xl mb-4">💬</span>
+                        <p className="text-xs font-black uppercase tracking-[.3em]">No transmissions yet</p>
+                    </div>
+                )}
+             </div>
+
+             <form onSubmit={handleCommentSubmit} className="p-6 bg-white border-t border-gray-100 flex gap-3">
+                <input 
+                    type="text" 
+                    placeholder="Type your message..."
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    className="flex-1 bg-gray-50 border-none rounded-2xl px-6 py-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-[#E2FB6C] outline-none transition-all"
+                />
+                <button type="submit" className="bg-[#004838] text-[#E2FB6C] w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-[#004838]/20 active:scale-95 transition-all">
+                    ➤
                 </button>
-              </div>
-            </form>
+             </form>
           </div>
         </div>
       )}
